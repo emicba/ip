@@ -4,16 +4,45 @@ export default {
     const host = request.headers.get('host');
     const accept = request.headers.get('accept') ?? '';
 
-    if (!accept.includes('text/html')) {
-      return new Response(ip);
-    }
-
-    let headers = '';
+    const headers = new Headers();
     request.headers.forEach((value, key) => {
       if (key.startsWith('cf-') || key.startsWith('x-')) {
         return;
       }
-      headers += `<li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/${key}" target="_blank" rel="noreferrer">${key}</a>: ${value}</li>`;
+      headers.set(key, value);
+    });
+
+    if (accept === 'application/json') {
+      const body = {
+        ip,
+        headers: Object.fromEntries(headers),
+        // https://developers.cloudflare.com/workers/runtime-apis/request/#incomingrequestcfproperties
+        geo: {
+          country: request.cf?.country,
+          city: request.cf?.city,
+          continent: request.cf?.continent,
+          latitude: request.cf?.latitude,
+          longitude: request.cf?.longitude,
+          postalCode: request.cf?.postalCode,
+          region: request.cf?.region,
+          regionCode: request.cf?.regionCode,
+          timezone: request.cf?.timezone,
+        },
+      };
+      return new Response(JSON.stringify(body), {
+        headers: {
+          'content-type': 'application/json',
+        },
+      });
+    }
+
+    if (!accept.includes('text/html')) {
+      return new Response(ip);
+    }
+
+    let headersList = '';
+    headers.forEach((value, key) => {
+      headersList += `<li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/${key}" target="_blank" rel="noreferrer">${key}</a>: ${value}</li>`;
     });
 
     let html = `
@@ -96,7 +125,7 @@ export default {
             </ul>
             <h2>These are the HTTP headers sent by your web browser:</h2>
             <ul>
-              ${headers}
+              ${headersList}
             </ul>
           </body>
         </html>`;
