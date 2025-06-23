@@ -21,22 +21,20 @@ async function getAstronomy(ctx: ExecutionContext, latitude: string, longitude: 
       lng: longitude,
       time_format: '24',
     });
+    const cache = await caches.open('custom:sunrisesunset');
     const cacheKey = new Request(`https://api.sunrisesunset.io/json?${params.toString()}`);
-    const cache = caches.default;
     let response = await cache.match(cacheKey);
     if (!response) {
       response = await fetch(cacheKey);
-      const data = await response.json();
-      const parsed = astronomySchema.safeParse((data as any).results);
-      if (!parsed.success) {
-        return undefined;
-      }
+      console.log(`cache miss for ${cacheKey.url}`);
       ctx.waitUntil(cache.put(cacheKey, response.clone()));
-      return parsed.data;
     }
-    // cache hit, no need to parse
     const data = await response.json();
-    return (data as any).results;
+    const parsed = astronomySchema.safeParse((data as any)?.results);
+    if (!parsed.success) {
+      return undefined;
+    }
+    return parsed.data;
   } catch (error) {
     console.error(error);
     return undefined;
@@ -64,7 +62,7 @@ export default {
 
     if (url.pathname === '/json' || accept === 'application/json') {
       let astronomy = undefined;
-      if (url.searchParams.get('astronomy') === '1' && request.cf?.latitude && request.cf?.longitude) {
+      if (url.searchParams.has('astronomy') && request.cf?.latitude && request.cf?.longitude) {
         astronomy = await getAstronomy(ctx, request.cf!.latitude, request.cf!.longitude);
       }
       const body = {
