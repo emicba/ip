@@ -1,27 +1,50 @@
-async function getAstronomy(latitude: string, longitude: string) {
+import { z } from 'zod/v4-mini';
+
+const astronomySchema = z.object({
+  date: z.string(),
+  sunrise: z.string(),
+  sunset: z.string(),
+  first_light: z.string(),
+  last_light: z.string(),
+  dawn: z.string(),
+  dusk: z.string(),
+  solar_noon: z.string(),
+  golden_hour: z.string(),
+  day_length: z.string(),
+  utc_offset: z.number(),
+});
+
+async function getAstronomy(ctx: ExecutionContext, latitude: string, longitude: string) {
   try {
     const params = new URLSearchParams({
       lat: latitude,
       lng: longitude,
       time_format: '24',
     });
-    const response = await fetch(`https://api.sunrisesunset.io/json?${params.toString()}`);
-    if (!response.ok) {
-      return null;
+    const cacheKey = new Request(`https://api.sunrisesunset.io/json?${params.toString()}`);
+    const cache = caches.default;
+    let response = await cache.match(cacheKey);
+    if (!response) {
+      response = await fetch(cacheKey);
+      const data = await response.json();
+      const parsed = astronomySchema.safeParse((data as any).results);
+      if (!parsed.success) {
+        return undefined;
+      }
+      ctx.waitUntil(cache.put(cacheKey, response.clone()));
+      return parsed.data;
     }
-    const data = (await response.json()) as { status: string; results: any };
-    if (data.status !== 'OK') {
-      return null;
-    }
-    return data.results;
+    // cache hit, no need to parse
+    const data = await response.json();
+    return (data as any).results;
   } catch (error) {
     console.error(error);
-    return null;
+    return undefined;
   }
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
     const ip = request.headers.get('cf-connecting-ip');
     const host = request.headers.get('host');
     const accept = request.headers.get('accept') ?? '';
@@ -40,9 +63,9 @@ export default {
     });
 
     if (url.pathname === '/json' || accept === 'application/json') {
-      let astronomy = null;
-      if (url.searchParams.has('astronomy') && request.cf?.latitude && request.cf?.longitude) {
-        astronomy = await getAstronomy(request.cf!.latitude, request.cf!.longitude);
+      let astronomy = undefined;
+      if (url.searchParams.get('astronomy') === '1' && request.cf?.latitude && request.cf?.longitude) {
+        astronomy = await getAstronomy(ctx, request.cf!.latitude, request.cf!.longitude);
       }
       const body = {
         ip,
