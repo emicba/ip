@@ -1,8 +1,35 @@
+async function getAstronomy(latitude: string, longitude: string) {
+  try {
+    const params = new URLSearchParams({
+      lat: latitude,
+      lng: longitude,
+      time_format: '24',
+    });
+    const response = await fetch(`https://api.sunrisesunset.io/json?${params.toString()}`);
+    if (!response.ok) {
+      return null;
+    }
+    const data = (await response.json()) as { status: string; results: any };
+    if (data.status !== 'OK') {
+      return null;
+    }
+    return data.results;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
 export default {
   async fetch(request) {
     const ip = request.headers.get('cf-connecting-ip');
     const host = request.headers.get('host');
     const accept = request.headers.get('accept') ?? '';
+    const url = new URL(request.url);
+
+    if (url.pathname !== '/' && url.pathname !== '/json') {
+      return new Response('Not found', { status: 404 });
+    }
 
     const headers = new Headers();
     request.headers.forEach((value, key) => {
@@ -12,7 +39,11 @@ export default {
       headers.set(key, value);
     });
 
-    if (accept === 'application/json') {
+    if (url.pathname === '/json' || accept === 'application/json') {
+      let astronomy = null;
+      if (url.searchParams.has('astronomy') && request.cf?.latitude && request.cf?.longitude) {
+        astronomy = await getAstronomy(request.cf!.latitude, request.cf!.longitude);
+      }
       const body = {
         ip,
         headers: Object.fromEntries(headers),
@@ -28,6 +59,7 @@ export default {
           regionCode: request.cf?.regionCode,
           timezone: request.cf?.timezone,
         },
+        astronomy,
       };
       return new Response(JSON.stringify(body), {
         headers: {
