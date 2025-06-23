@@ -1,18 +1,33 @@
 import { z } from 'zod/v4-mini';
 
-const astronomySchema = z.object({
-  date: z.string(),
-  sunrise: z.string(),
-  sunset: z.string(),
-  first_light: z.string(),
-  last_light: z.string(),
-  dawn: z.string(),
-  dusk: z.string(),
-  solar_noon: z.string(),
-  golden_hour: z.string(),
-  day_length: z.string(),
-  utc_offset: z.number(),
-});
+const astronomySchema = z.pipe(
+  z.object({
+    date: z.string(),
+    sunrise: z.string(),
+    sunset: z.string(),
+    first_light: z.string(),
+    last_light: z.string(),
+    dawn: z.string(),
+    dusk: z.string(),
+    solar_noon: z.string(),
+    golden_hour: z.string(),
+    day_length: z.string(),
+    utc_offset: z.number(),
+  }),
+  z.transform((data) => ({
+    date: data.date,
+    sunrise: data.sunrise,
+    sunset: data.sunset,
+    firstLight: data.first_light,
+    lastLight: data.last_light,
+    dawn: data.dawn,
+    dusk: data.dusk,
+    solarNoon: data.solar_noon,
+    goldenHour: data.golden_hour,
+    dayLength: data.day_length,
+    utcOffset: data.utc_offset,
+  }))
+);
 
 async function getAstronomy(ctx: ExecutionContext, latitude: string, longitude: string) {
   try {
