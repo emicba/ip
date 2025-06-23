@@ -156,7 +156,7 @@ export default {
                 list-style: none;
                 margin-top: 0.5rem;
               }
-              li a {
+              li > a {
                 text-transform: capitalize;
                 text-decoration: underline;
                 text-underline-offset: 4px;
@@ -173,6 +173,7 @@ export default {
                 line-height: 1.25rem;
                 white-space: pre-wrap;
                 background-color: #eee;
+                user-select: all;
                 @media (prefers-color-scheme: dark) {
                   background-color: #333;
                 }
@@ -182,14 +183,15 @@ export default {
           <body>
             <h1>IP: ${ip ?? '&lt;unknown&gt;'}</h1>
             <p>
-              <b>NOTE:</b> If you want the raw IP for scripts and stuff just send a request without the <code>Accept</code> header.
+              <b>NOTE:</b> Want JSON? Just send <code>Accept: application/json</code> or hit <code>/json</code> directly.
             </p>
             <h2 id="sample-usage">Sample usage:</h2>
             <ul>
-              <li><code>curl ${host}</code></li>
+              <li><code>curl -s ${host}</code></li>
+              <li><code>curl -s ${host}/json | <a href="https://jqlang.org/" target="_blank" rel="noreferrer">jq</a></code></li>
+              <li><code>curl -s ${host}/json?astronomy=1 | <a href="https://jqlang.org/" target="_blank" rel="noreferrer">jq</a></code></li>
               <li><code>export IP="$(curl -s ${host})"</code></li>
               <li><code>export IP="$(wget -qO- ${host})"</code></li>
-              <li><code>fetch('https://${host}').then(console.log);</code></li>
             </ul>
             <h2>These are the HTTP headers sent by your web browser:</h2>
             <ul>
